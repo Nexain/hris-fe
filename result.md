@@ -108,3 +108,83 @@ npm run dev
 ```
 
 Open your browser at: **`http://localhost:3000`**
+
+---
+
+# Phase 2 Execution Report: Environment, Server-Side API Proxy & Role Switcher
+
+> **Status:** ✅ Completed  
+> **Date:** October 10, 2026  
+
+---
+
+## 1. Summary of Actions Executed
+
+1. **Configured Environment (`.env.local`):**
+   - Configured `BACKEND_API_URL=https://chatbot-hris-991560435962.asia-southeast1.run.app`.
+   - Set `GCP_BEARER_TOKEN` with the Google Cloud IAM identity token.
+2. **Created Server-Side API Proxy Route (`src/app/api/proxy/[...path]/route.ts`):**
+   - Implemented dynamic Next.js 15 Route Handlers (`GET`, `POST`, `PUT`, `DELETE`).
+   - Forwards client calls to Cloud Run, automatically injecting:
+     - `Authorization: Bearer <GCP_BEARER_TOKEN>`
+     - `x-user-id` and `x-access-level` headers.
+   - Solves browser CORS and prevents exposing the Google Cloud IAM token to client-side code.
+3. **Built User & Role Context (`src/context/UserContext.tsx`):**
+   - Default user initialized as `user_001` (Naufal, Backend Engineer, Jakarta).
+   - Provides seamless toggle between `EMPLOYEE` and `HR_ADMIN` perspectives.
+   - Persists persona selection in `localStorage`.
+4. **Built Client-Side API Utility (`src/lib/api.ts`):**
+   - Type-safe wrapper for `GET`, `POST`, `PUT`, and `upload` (multipart form data) communicating with `/api/proxy`.
+5. **Created Global Providers (`src/app/providers.tsx`):**
+   - Configured `@tanstack/react-query` `QueryClientProvider` with 30-second stale time.
+   - Mounted `UserProvider` and Sonner's `Toaster` notifications.
+6. **Built Header Navigation (`src/components/Navbar.tsx`):**
+   - DayOne AI brand with logo and tagline.
+   - Dynamic tab navigation (`/` Onboarding, `/chat` Copilot Chat, `/documents` Knowledge Base).
+   - Interactive Role Switcher pill in the top-right corner.
+7. **Updated Root Layout (`src/app/layout.tsx`):**
+   - Integrated `Providers` and `Navbar` with responsive max-width container.
+
+---
+
+## 2. Blockers & Solutions
+
+* **Blocker:** Next.js 15 App Router handles `params` asynchronously as a `Promise<{ path: string[] }>`. Traditional synchronous access (`params.path`) causes runtime warnings/errors in Next.js 15.
+* **Solution:** Used `await context.params` in `route.ts`, ensuring compatibility with Next.js 15.
+
+---
+
+## 3. Files Created & Modified
+
+| File | Purpose |
+|---|---|
+| [`.env.local`](file:///Users/halfdeen/Naufal/Developments/hris-fe/.env.local) | Backend URL and GCP Bearer token configuration. |
+| [`src/app/api/proxy/[...path]/route.ts`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/app/api/proxy/[...path]/route.ts) | Server-side API proxy route forwarding to Cloud Run. |
+| [`src/context/UserContext.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/context/UserContext.tsx) | Role switching state between Employee and HR Admin. |
+| [`src/lib/api.ts`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/lib/api.ts) | Type-safe API client utility. |
+| [`src/app/providers.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/app/providers.tsx) | React Query and UserContext providers wrapper. |
+| [`src/components/Navbar.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/Navbar.tsx) | Header navigation with role switcher button. |
+| [`src/app/layout.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/app/layout.tsx) | Root application layout with Providers and Navbar. |
+
+---
+
+## 4. Build Verification
+
+```bash
+npm run build
+```
+
+**Result:**
+```text
+▲ Next.js 16.4.0 (Turbopack)
+- Environments: .env.local
+✓ Compiled successfully in 530ms
+✓ Finished TypeScript in 764ms 
+✓ Generating static pages using 6 workers (4/4) in 158ms
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└ ƒ /api/proxy/[...path] (Dynamic API proxy route)
+```
+
