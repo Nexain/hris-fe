@@ -188,3 +188,111 @@ Route (app)
 └ ƒ /api/proxy/[...path] (Dynamic API proxy route)
 ```
 
+---
+
+# Phase 3 Execution Report: Employee Onboarding Dashboard
+
+> **Status:** ✅ Completed  
+> **Date:** October 10, 2026  
+
+---
+
+## 1. Summary of Actions Executed
+
+1. **Built `ProgressCard` Component (`src/components/dashboard/ProgressCard.tsx`):**
+   - Fetches live progress from `/api/proxy/onboarding/progress` via React Query.
+   - Dynamic SVG progress circle displaying current completion percentage.
+   - Highlights user identity: *"Welcome to the team, Naufal! Day 1 of Your Onboarding"*.
+   - Displays task counter breakdown (Completed vs Remaining).
+2. **Built `CopilotBanner` Component (`src/components/dashboard/CopilotBanner.tsx`):**
+   - High-contrast gradient callout banner introducing the AI Onboarding Copilot.
+   - Clickable starter prompt chips (*"What is my schedule for Day 1?"*, *"How do I request my laptop and equipment?"*, *"Where can I find the company leave policy?"*).
+   - Direct CTA button linking to `/chat`.
+3. **Built `TaskList` Component (`src/components/dashboard/TaskList.tsx`):**
+   - Fetches onboarding checklist from `/api/proxy/tasks`.
+   - Day filter pills: **All Tasks (7)**, **Day 1 (3)**, **Day 2 (2)**, **Day 3 (2)**.
+   - Interactive task completion:
+     - Clicking checkbox sends `POST /api/proxy/tasks/{id}/complete`.
+     - React Query invalidates `onboarding-tasks` and `onboarding-progress` queries.
+     - Triggers Sonner celebration toast: *"Task marked as completed! 🎉"*.
+     - Source document badges indicating reference documents (e.g., `employee-handbook`, `it-security-guide`).
+     - *"Ask Copilot"* shortcut button next to every task.
+4. **Assembled Dashboard Home Page (`src/app/page.tsx`):**
+   - Replaced default Next.js template with clean, production-ready dashboard.
+
+---
+
+## 2. Blockers & Solutions
+
+* No blockers encountered. All components integrated seamlessly with `UserContext`, `ApiClient`, and the server-side proxy.
+
+---
+
+## 3. Files Created & Modified
+
+| File | Purpose |
+|---|---|
+| [`src/components/dashboard/ProgressCard.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/dashboard/ProgressCard.tsx) | Live progress ring and employee welcome banner. |
+| [`src/components/dashboard/CopilotBanner.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/dashboard/CopilotBanner.tsx) | Copilot introduction banner with quick question chips. |
+| [`src/components/dashboard/TaskList.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/dashboard/TaskList.tsx) | Interactive day-by-day checklist with completion triggers. |
+| [`src/app/page.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/app/page.tsx) | Assembled dashboard root page. |
+
+---
+
+## 4. Build Verification
+
+```bash
+npm run build
+```
+
+**Result:**
+```text
+▲ Next.js 16.4.0 (Turbopack)
+- Environments: .env.local
+✓ Compiled successfully in 489ms
+✓ Finished TypeScript in 705ms 
+✓ Generating static pages using 6 workers (4/4) in 154ms
+✓ Finalizing page optimization in 85ms 
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└ ƒ /api/proxy/[...path]
+```
+
+---
+
+## 5. Phase 3 — Revision 1: Role-Aware Persona & HR Audit View
+
+* **Problem Addressed:** Toggling to HR Admin previously kept the personal employee greeting ("Welcome to the team, Naufal!") and allowed HR Admin to check off employee tasks.
+* **Enhancements Implemented:**
+  1. **Dual Persona State ([`src/context/UserContext.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/context/UserContext.tsx)):**
+     - When switched to HR Admin, identity changes to **HR Admin (People Operations Lead)**.
+     - Maintains `inspectedEmployee` reference targeting `user_001` (Naufal).
+  2. **HR Oversight Header ([`src/components/dashboard/ProgressCard.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/dashboard/ProgressCard.tsx)):**
+     - Header dynamically updates to: *"Employee Onboarding Monitor 📊 (Overseeing onboarding milestones for new hire Naufal)"*.
+     - Progress ring displays *"Naufal's Progress: 14%"* in purple accent.
+  3. **HR Knowledge Base Banner ([`src/components/dashboard/CopilotBanner.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/dashboard/CopilotBanner.tsx)):**
+     - Shifts to deep purple gradient with direct CTA to *"Manage Knowledge Base →"* (`/documents`).
+  4. **Read-Only Inspection Mode ([`src/components/dashboard/TaskList.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/dashboard/TaskList.tsx)):**
+     - Replaces clickable checkboxes with audit badges (*"Completed by Employee"* vs *"Pending Employee Action"*).
+     - Protects employee task integrity while giving HR Admin full visibility.
+
+---
+
+## 6. Phase 3 — Revision 2: Multi-User & Multi-Role Support
+
+* **New Employee Created in Cloud Run & Firestore:**
+  - `user_002`: **Afif** (Product Designer, Design, Jakarta).
+  - Backend auto-generated role-specific tasks for Design (e.g. Task 5: *"Review departmental onboarding materials for Design"* instead of engineering repository setup).
+* **Frontend Multi-Persona Selector ([`src/components/Navbar.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/Navbar.tsx)):**
+  - Dropdown selector supporting:
+    - 👨‍💻 **Naufal** (Backend Engineer)
+    - 🎨 **Afif** (Product Designer)
+    - 🛡️ **HR Admin** (People Operations)
+* **HR Admin Employee Inspection Bar ([`src/components/dashboard/ProgressCard.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/dashboard/ProgressCard.tsx)):**
+  - HR Admins can click between inspecting Naufal's onboarding (14% complete) or Afif's onboarding (0% complete) with instant live progress and checklist switching.
+
+
+
+
