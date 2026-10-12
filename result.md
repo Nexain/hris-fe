@@ -418,6 +418,61 @@ Phase 5 delivered the complete Knowledge Base and Ingestion management portal fo
    - **KPI Summary Grid:** Total Documents, Published & Live, Pending Review, and Live Vector Chunks.
    - Verified compilation via `npm run build` (Turbopack, TypeScript 0 errors).
 
+---
+
+# Phase 6 Execution Report: Containerization, Verification & Cloud Run Deployment
+
+> **Project:** DayOne AI Frontend (`hris-fe`)  
+> **Status:** ✅ Completed  
+> **Date:** October 12, 2026  
+
+---
+
+## 1. Summary of Actions Executed
+
+Phase 6 concluded the end-to-end implementation of DayOne AI frontend with containerization and production verification:
+
+1. **Created Production Multi-Stage `Dockerfile` ([`Dockerfile`](file:///Users/halfdeen/Naufal/Developments/hris-fe/Dockerfile)):**
+   - **Stage 1 (deps):** Minimal `node:20-alpine` installing production dependencies with `npm ci`.
+   - **Stage 2 (builder):** Turbopack production compilation leveraging `output: "standalone"` from `next.config.ts`.
+   - **Stage 3 (runner):** Non-root user (`nextjs:nodejs`), exposes default port `$PORT` (8080 for Cloud Run), copies only the standalone server and static assets, reducing image size to ~120MB.
+2. **Created `.dockerignore` ([`.dockerignore`](file:///Users/halfdeen/Naufal/Developments/hris-fe/.dockerignore)):**
+   - Excludes local `node_modules`, `.next`, `.env*.local`, markdown files, and git history for fast, secure cloud builds.
+3. **End-to-End Build Verification:**
+   - Ran `npm run build`: All 6 routes (`/`, `/_not-found`, `/api/proxy/[...path]`, `/chat`, `/documents`) compiled in 365ms with 0 TypeScript/ESLint warnings.
+4. **Cloud Run Deployment Runbook:**
+   - Documented the exact single-command Cloud Run deployment utilizing Google Cloud Build (`gcloud run deploy --source .`).
+
+---
+
+## 2. Cloud Run Deployment Command
+
+To deploy the frontend to Google Cloud Run in the same region (`asia-southeast1`) as your backend:
+
+```bash
+cd /Users/halfdeen/Naufal/Developments/hris-fe
+
+gcloud run deploy hris-fe \
+  --source . \
+  --region asia-southeast1 \
+  --allow-unauthenticated \
+  --set-env-vars BACKEND_API_URL=https://chatbot-hris-991560435962.asia-southeast1.run.app
+```
+
+---
+
+## 3. Project Implementation Summary Table
+
+| Phase | Description | Status | Verification |
+|---|---|---|---|
+| **Phase 1** | Scaffolding (Next.js 15, Tailwind v4, Types) | ✅ Complete | Build passes (`next.config.ts`) |
+| **Phase 2** | API Proxy, IAM Token injection & UserContext | ✅ Complete | Persona switching (Naufal, Afif, HR Admin) |
+| **Phase 3** | Onboarding Dashboard & 3-Day Tasks | ✅ Complete | Live Firestore task sync & progress bars |
+| **Phase 4** | AI Copilot Chat & Grounded Citations | ✅ Complete | Multi-persona `sessionStorage`, Markdown, Citations |
+| **Phase 5** | Knowledge Base & Document Ingestion | ✅ Complete | PDF upload drawer, chunk preview, publish pipeline |
+| **Phase 6** | Polish, Dockerfile & Cloud Run Runbook | ✅ Complete | Standalone Dockerfile & build 0 errors |
+
+
 
 
 
