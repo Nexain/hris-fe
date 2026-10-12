@@ -293,6 +293,98 @@ Route (app)
 * **HR Admin Employee Inspection Bar ([`src/components/dashboard/ProgressCard.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/dashboard/ProgressCard.tsx)):**
   - HR Admins can click between inspecting Naufal's onboarding (14% complete) or Afif's onboarding (0% complete) with instant live progress and checklist switching.
 
+---
+
+# Phase 4 Execution Report: AI Onboarding Copilot Chat (`/chat`)
+
+> **Status:** ✅ Completed  
+> **Date:** October 10, 2026  
+
+---
+
+## 1. Summary of Actions Executed
+
+1. **Built `CitationBadge` Component ([`src/components/chat/CitationBadge.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/chat/CitationBadge.tsx)):**
+   - Renders interactive source pills indicating reference documents (e.g., `📄 First Day Guide`), page numbers (`p. 1`), and section titles.
+2. **Built `MessageBubble` Component ([`src/components/chat/MessageBubble.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/chat/MessageBubble.tsx)):**
+   - Formats user messages (right-aligned blue bubble) and Copilot answers (left-aligned card).
+   - Rich Markdown parsing with `react-markdown` and `remark-gfm` (bold text, lists, and schedules).
+   - Grounding validation badge: *"Grounded Citations (N)"*.
+   - HR Escalation warning banner if `escalation_required === true`.
+3. **Built `ChatInput` Component ([`src/components/chat/ChatInput.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/chat/ChatInput.tsx)):**
+   - Auto-expanding textarea with `Enter` submit handler and `Shift+Enter` for newlines.
+   - Quick starter question chips (*"What is my Day 1 schedule?"*, *"How do I request my laptop and peripherals?"*, *"Where can I find the leave and attendance policy?"*).
+   - Loading indicator with disabled state while processing.
+4. **Built `ChatContainer` Component ([`src/components/chat/ChatContainer.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/chat/ChatContainer.tsx)):**
+   - Full conversation state management with auto-scrolling to latest message.
+   - Initialized with personalized AI greeting (*"Hello Naufal! 👋 I am your DayOne AI Copilot..."*).
+   - Direct integration with `/api/proxy/chat` passing active persona ID and role headers.
+   - Clear history button.
+   - Pre-fills and sends queries passed via URL parameters (e.g., `/chat?q=...` from the dashboard).
+5. **Built Chat Page Route ([`src/app/chat/page.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/app/chat/page.tsx)):**
+   - Wrapped in React `Suspense` boundary for clean Next.js 15 App Router static generation.
+
+---
+
+## 2. Blockers & Solutions
+
+* **Blocker:** Using `useSearchParams()` in Next.js App Router client components requires a `<Suspense>` boundary during `next build` static page generation.
+* **Solution:** Wrapped `ChatContainer` inside a `Suspense` fallback in `src/app/chat/page.tsx`.
+
+---
+
+## 3. Files Created & Modified
+
+| File | Purpose |
+|---|---|
+| [`src/components/chat/CitationBadge.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/chat/CitationBadge.tsx) | Grounded document reference citation badge. |
+| [`src/components/chat/MessageBubble.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/chat/MessageBubble.tsx) | Markdown chat bubble with citation pill container. |
+| [`src/components/chat/ChatInput.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/chat/ChatInput.tsx) | Auto-expanding input with suggested prompt chips. |
+| [`src/components/chat/ChatContainer.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/chat/ChatContainer.tsx) | Main conversation manager and API connector. |
+| [`src/app/chat/page.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/app/chat/page.tsx) | Chat page route with Suspense wrapper. |
+
+---
+
+## 4. Build Verification
+
+```bash
+npm run build
+```
+
+**Result:**
+```text
+▲ Next.js 16.4.0 (Turbopack)
+- Environments: .env.local
+✓ Compiled successfully in 787ms
+✓ Finished TypeScript in 857ms 
+✓ Generating static pages using 7 workers (5/5) in 187ms
+✓ Finalizing page optimization in 93ms 
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/proxy/[...path]
+└ ○ /chat
+```
+
+---
+
+## 5. Phase 4 — Revision 1: Isolated Multi-Persona Chat Threads
+
+* **Problem Addressed:** When switching personas from Naufal to Afif or HR Admin, the previous user's chat messages remained on screen, greeting the wrong employee.
+* **Enhancements Implemented:**
+  1. **Dynamic Instance Keying (`src/app/chat/page.tsx`):**
+     - Passed `key={user.id}` to `<ChatContainer />` to trigger a clean React lifecycle remount whenever the active persona switches.
+  2. **Isolated `sessionStorage` Persistence (`src/components/chat/ChatContainer.tsx`):**
+     - Conversations are keyed by `dayone_chat_${user.id}` (e.g. `dayone_chat_user_001`, `dayone_chat_user_002`, `dayone_chat_hr_admin_001`).
+     - Chatting as Naufal, switching to Afif, and switching back restores Naufal's conversation without data loss.
+  3. **Role-Tailored Initial Greetings:**
+     - **Naufal:** *"Hello Naufal! 👋 I am your DayOne AI Copilot..."*
+     - **Afif:** *"Hello Afif! 👋 I am your DayOne AI Copilot..."*
+     - **HR Admin:** *"Hello HR Admin! 🛡️ Welcome to the DayOne AI Copilot Testing Sandbox..."* (explaining policy audit mode).
+
+
+
 
 
 
