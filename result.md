@@ -383,6 +383,41 @@ Route (app)
      - **Afif:** *"Hello Afif! 👋 I am your DayOne AI Copilot..."*
      - **HR Admin:** *"Hello HR Admin! 🛡️ Welcome to the DayOne AI Copilot Testing Sandbox..."* (explaining policy audit mode).
 
+---
+
+# Phase 5 Execution Report: Knowledge Base & Document Ingestion (`/documents`)
+
+> **Project:** DayOne AI Frontend (`hris-fe`)  
+> **Status:** ✅ Completed  
+> **Date:** October 12, 2026  
+
+---
+
+## 1. Summary of Actions Executed
+
+Phase 5 delivered the complete Knowledge Base and Ingestion management portal for HR Admins:
+
+1. **Built `ChunkPreviewModal` Component ([`src/components/documents/ChunkPreviewModal.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/documents/ChunkPreviewModal.tsx)):**
+   - Fetches and displays searchable vector chunks from `GET /api/proxy/versions/{id}/chunks`.
+   - Displays chunk index, chunk ID, character count, and formatted text content.
+2. **Built `NewDocumentModal` Component ([`src/components/documents/NewDocumentModal.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/documents/NewDocumentModal.tsx)):**
+   - Registers new logical document records via `POST /api/proxy/documents`.
+   - Fields: Title, Category (`POLICY`, `HANDBOOK`, `GUIDE`, `PROCEDURE`, `BENEFITS`, `IT`), Department, Location, and Owner.
+3. **Built `DocumentDrawer` Component ([`src/components/documents/DocumentDrawer.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/documents/DocumentDrawer.tsx)):**
+   - Side sheet to inspect version history and manage the full ingestion lifecycle:
+     - **Step 1: Upload New PDF:** Drag-and-drop file upload zone sending `multipart/form-data` to `POST /api/proxy/documents/{id}/versions`.
+     - **Step 2: Ingest & Embed:** *"Process Document"* button calling `POST /api/proxy/versions/{id}/process` with real-time loading spinner.
+     - **Step 3: Quality Check:** *"Inspect Chunks"* button previewing extracted sections.
+     - **Step 4: Go Live:** *"Publish Live"* button calling `POST /api/proxy/versions/{id}/publish` which supersedes old versions and makes chunks active in RAG.
+     - **Step 5: Reject:** *"Reject"* button calling `POST /api/proxy/versions/{id}/reject`.
+4. **Built `DocumentTable` Component ([`src/components/documents/DocumentTable.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/components/documents/DocumentTable.tsx)):**
+   - Search by title or slug ID, category filter, and department filter.
+   - Status indicators (`Live`, `In Review`, `Draft`, `No PDF Uploaded`).
+5. **Built Knowledge Base Page Route ([`src/app/documents/page.tsx`](file:///Users/halfdeen/Naufal/Developments/hris-fe/src/app/documents/page.tsx)):**
+   - **Role Guard:** Protects `/documents` from unauthorized access. If in `EMPLOYEE` mode, shows a friendly banner with a one-click button to *"Switch to HR Admin Mode"*.
+   - **KPI Summary Grid:** Total Documents, Published & Live, Pending Review, and Live Vector Chunks.
+   - Verified compilation via `npm run build` (Turbopack, TypeScript 0 errors).
+
 
 
 
