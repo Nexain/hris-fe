@@ -3,7 +3,30 @@ import { NextRequest, NextResponse } from "next/server";
 const BACKEND_URL =
   process.env.BACKEND_API_URL ||
   "https://chatbot-hris-991560435962.asia-southeast1.run.app";
-const GCP_BEARER_TOKEN = process.env.GCP_BEARER_TOKEN || "";
+
+async function getAuthToken(audience: string): Promise<string> {
+  // 1. Use static env token if provided (e.g. local development)
+  if (process.env.GCP_BEARER_TOKEN) {
+    return process.env.GCP_BEARER_TOKEN;
+  }
+
+  // 2. In Cloud Run production, auto-fetch IAM identity token from GCP metadata server
+  try {
+    const metadataUrl = `http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${encodeURIComponent(audience)}`;
+    const res = await fetch(metadataUrl, {
+      headers: { "Metadata-Flavor": "Google" },
+      signal: AbortSignal.timeout(1000),
+    });
+    if (res.ok) {
+      const token = await res.text();
+      return token.trim();
+    }
+  } catch {
+    // Not running in GCP or metadata server unavailable
+  }
+
+  return "";
+}
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
@@ -27,9 +50,10 @@ async function proxyRequest(req: NextRequest, context: RouteContext) {
     headers.set("content-type", req.headers.get("content-type")!);
   }
 
-  // Attach Google Cloud Run IAM bearer token server-side
-  if (GCP_BEARER_TOKEN) {
-    headers.set("authorization", `Bearer ${GCP_BEARER_TOKEN}`);
+  // Attach Google Cloud Run IAM bearer token (static or auto-generated)
+  const token = await getAuthToken(BACKEND_URL);
+  if (token) {
+    headers.set("authorization", `Bearer ${token}`);
   }
 
   const method = req.method;
