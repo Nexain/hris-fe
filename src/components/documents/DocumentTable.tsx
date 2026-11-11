@@ -249,7 +249,7 @@ export function DocumentTable({
                       <td className="py-4 px-4 text-zinc-600 dark:text-zinc-400 font-medium">
                         <span className="flex items-center gap-1">
                           <Layers className="w-3.5 h-3.5 text-zinc-400" />
-                          {doc.versions?.length || 0} versions
+                          {doc.versions?.length || 0} {doc.versions?.length === 1 ? "version" : "versions"}
                         </span>
                       </td>
 

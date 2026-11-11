@@ -24,6 +24,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+// A version still PROCESSING after this long almost certainly failed silently.
+const PROCESSING_STALL_MS = 15 * 60 * 1000;
+
+function isProcessingStalled(version: DocumentVersion): boolean {
+  if (version.status !== "PROCESSING") return false;
+  const started = new Date(version.created_at).getTime();
+  return Number.isFinite(started) && Date.now() - started > PROCESSING_STALL_MS;
+}
+
 interface DocumentDrawerProps {
   document: Document | null;
   isOpen: boolean;
@@ -43,11 +52,17 @@ export function DocumentDrawer({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [copiedHash, setCopiedHash] = useState(false);
 
-  // Default to current_version_id or the first version in list
+  // Default to the live (published) version, then current_version_id, then the newest upload.
+  const newestVersion = [...(document?.versions ?? [])].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )[0];
   const activeVersionId =
-    selectedVersionId ||
+    (selectedVersionId && document?.versions?.some((v) => v.id === selectedVersionId)
+      ? selectedVersionId
+      : null) ||
+    document?.versions?.find((v) => v.status === "PUBLISHED")?.id ||
     document?.current_version_id ||
-    document?.versions?.[0]?.id ||
+    newestVersion?.id ||
     null;
 
   const currentVersion = document?.versions?.find((v) => v.id === activeVersionId) || document?.versions?.[0];
@@ -145,7 +160,7 @@ export function DocumentDrawer({
     setTimeout(() => setCopiedHash(false), 2000);
   };
 
-  const getStatusBadge = (status: VersionStatus) => {
+  const getStatusBadge = (status: VersionStatus, version?: DocumentVersion) => {
     switch (status) {
       case "PUBLISHED":
         return (
@@ -162,11 +177,25 @@ export function DocumentDrawer({
           </span>
         );
       case "DRAFT":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            <Upload className="w-3.5 h-3.5" />
+            UPLOADED (Unprocessed)
+          </span>
+        );
       case "PROCESSING":
+        if (version && isProcessingStalled(version)) {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              PROCESSING STALLED
+            </span>
+          );
+        }
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
             <Cpu className="w-3.5 h-3.5 animate-spin" />
-            UPLOADED (Unprocessed)
+            PROCESSING
           </span>
         );
       case "SUPERSEDED":
@@ -275,7 +304,7 @@ export function DocumentDrawer({
                     <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                       Version {currentVersion.version}
                     </span>
-                    {getStatusBadge(currentVersion.status)}
+                    {getStatusBadge(currentVersion.status, currentVersion)}
                   </div>
                   <span className="text-xs text-zinc-400 font-mono">
                     ID: {currentVersion.id.slice(0, 8)}...
@@ -339,7 +368,11 @@ export function DocumentDrawer({
                         ) : (
                           <>
                             <Cpu className="w-4 h-4" />
-                            <span>⚡ Step 2: Process Document (Generate Chunks)</span>
+                            <span>
+                              {isProcessingStalled(currentVersion)
+                                ? "Retry Processing (Generate Chunks)"
+                                : "⚡ Step 2: Process Document (Generate Chunks)"}
+                            </span>
                           </>
                         )}
                       </button>

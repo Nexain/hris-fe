@@ -1,17 +1,32 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
-import { ChatMessage, ChatResponse } from "@/types";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ChatHistoryEntry, ChatMessage, ChatResponse } from "@/types";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import { ApiClient } from "@/lib/api";
 import { useUser } from "@/context/UserContext";
 import { Sparkles, Bot, Trash2 } from "lucide-react";
 
+// How many earlier messages to send so follow-up questions keep their context.
+const MAX_HISTORY_MESSAGES = 10;
+
+function buildHistory(messages: ChatMessage[]): ChatHistoryEntry[] {
+  return messages
+    .filter((m) => !m.isError && !m.id.startsWith("welcome-") && m.content.trim())
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map((m) => ({
+      role: m.sender === "user" ? "user" : "model",
+      content: m.content,
+    }));
+}
+
 export function ChatContainer() {
   const { user, accessLevel, isHRAdmin } = useUser();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const initialQuery = searchParams.get("q") || "";
 
   const storageKey = `dayone_chat_${user.id}`;
@@ -69,8 +84,11 @@ export function ChatContainer() {
   useEffect(() => {
     if (initialQuery && !sentInitialRef.current) {
       sentInitialRef.current = true;
+      // Drop ?q= from the URL so a refresh or persona switch doesn't send it again.
+      router.replace(pathname, { scroll: false });
       handleSendMessage(initialQuery);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
 
   const handleSendMessage = async (text: string) => {
@@ -83,6 +101,7 @@ export function ChatContainer() {
       timestamp: new Date(),
     };
 
+    const history = buildHistory(messages);
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
@@ -92,6 +111,7 @@ export function ChatContainer() {
         {
           message: text,
           user_id: user.id,
+          history,
         },
         accessLevel,
         user.id
@@ -113,6 +133,7 @@ export function ChatContainer() {
         id: `bot-err-${Date.now()}`,
         sender: "copilot",
         content: `Sorry, I encountered an issue connecting to the AI service: ${err.message || "Please try again later."}`,
+        isError: true,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
