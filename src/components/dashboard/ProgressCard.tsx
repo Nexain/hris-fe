@@ -11,24 +11,31 @@ export function ProgressCard() {
   const {
     user,
     inspectedEmployee,
-    availableEmployees,
+    employees,
+    employeesLoading,
+    employeesError,
     setInspectedEmployee,
     isHRAdmin,
-    accessLevel,
   } = useUser();
 
-  // If HR Admin, inspect selected employee's progress
-  const targetUserId = isHRAdmin ? inspectedEmployee.id : user.id;
+  // Employees read their own progress; HR reads the selected employee's through the
+  // HR-only admin endpoint (identity always comes from the session).
+  const progressPath = isHRAdmin
+    ? inspectedEmployee && `admin/employees/${encodeURIComponent(inspectedEmployee.user_id)}/progress`
+    : "onboarding/progress";
 
-  const { data: progress, isLoading } = useQuery<OnboardingProgress>({
-    queryKey: ["onboarding-progress", targetUserId],
-    queryFn: () => ApiClient.get<OnboardingProgress>("onboarding/progress", accessLevel, targetUserId),
+  const { data: progress, isLoading: progressLoading } = useQuery<OnboardingProgress>({
+    queryKey: ["onboarding-progress", progressPath],
+    queryFn: () => ApiClient.get<OnboardingProgress>(progressPath!),
+    enabled: !!progressPath,
   });
+  const isLoading = progressLoading || (isHRAdmin && employeesLoading);
 
   // Same query key and fetcher as TaskList, so React Query shares one request.
   const { data: tasks } = useQuery<OnboardingTask[]>({
-    queryKey: ["onboarding-tasks", targetUserId],
-    queryFn: () => ApiClient.get<OnboardingTask[]>("tasks", accessLevel, targetUserId),
+    queryKey: ["onboarding-tasks", "tasks"],
+    queryFn: () => ApiClient.get<OnboardingTask[]>("tasks"),
+    enabled: !isHRAdmin,
   });
 
   // The current onboarding day is the earliest day that still has pending tasks.
@@ -60,11 +67,23 @@ export function ProgressCard() {
                 Employee Onboarding Monitor 📊
               </h1>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Overseeing milestone completion for new hire{" "}
-                <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                  {inspectedEmployee.name}
-                </span>{" "}
-                ({inspectedEmployee.role} • {inspectedEmployee.department}, {inspectedEmployee.location}).
+                {inspectedEmployee ? (
+                  <>
+                    Overseeing milestone completion for new hire{" "}
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      {inspectedEmployee.name}
+                    </span>{" "}
+                    ({[inspectedEmployee.role, inspectedEmployee.department, inspectedEmployee.location]
+                      .filter(Boolean)
+                      .join(" • ")}).
+                  </>
+                ) : employeesError ? (
+                  <>Could not load employees: {employeesError.message}</>
+                ) : employeesLoading ? (
+                  <>Loading employees…</>
+                ) : (
+                  <>No employees with an onboarding profile yet.</>
+                )}
               </p>
             </>
           ) : (
@@ -77,7 +96,9 @@ export function ProgressCard() {
                 Welcome to the team, {user.name}! 👋
               </h1>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                We’re excited to have you join as {user.role} in {user.department} ({user.location}).
+                We’re excited to have you join as {user.role}
+                {user.department ? ` in ${user.department}` : ""}
+                {user.location ? ` (${user.location})` : ""}.
                 Complete your checklist below to get your workspace set up smoothly.
               </p>
             </>
@@ -125,7 +146,7 @@ export function ProgressCard() {
                 </>
               ) : isHRAdmin ? (
                 <span className="text-purple-700 dark:text-purple-300">
-                  {inspectedEmployee.name}'s Progress
+                  {inspectedEmployee ? `${inspectedEmployee.name}’s Progress` : "Employee Progress"}
                 </span>
               ) : (
                 <span>Onboarding Progress</span>
@@ -160,20 +181,25 @@ export function ProgressCard() {
             <UserCheck className="w-3.5 h-3.5" />
             Select Employee to Inspect:
           </span>
-          <div className="flex items-center gap-2">
-            {availableEmployees.map((emp) => {
-              const isSelected = inspectedEmployee.id === emp.id;
+          <div className="flex flex-wrap items-center gap-2">
+            {employees.length === 0 && (
+              <span className="text-xs text-zinc-400">
+                {employeesLoading ? "Loading…" : "No employees found."}
+              </span>
+            )}
+            {employees.map((emp) => {
+              const isSelected = inspectedEmployee?.user_id === emp.user_id;
               return (
                 <button
-                  key={emp.id}
-                  onClick={() => setInspectedEmployee(emp.id)}
+                  key={emp.user_id}
+                  onClick={() => setInspectedEmployee(emp.user_id)}
                   className={`px-3 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                     isSelected
                       ? "bg-purple-600 text-white font-semibold shadow-xs"
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                   }`}
                 >
-                  {emp.name} ({emp.role})
+                  {emp.name} ({emp.role}) · {Math.round(emp.progress_percent ?? 0)}%
                 </button>
               );
             })}

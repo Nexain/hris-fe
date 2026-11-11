@@ -1,5 +1,3 @@
-import { AccessLevel } from "@/types";
-
 /**
  * Turns an error response body into a readable message. The backend returns
  * several shapes: `{ detail: string }`, FastAPI validation errors
@@ -36,81 +34,59 @@ export async function extractErrorMessage(res: Response, fallback: string): Prom
   return messageFromErrorBody(body) || `${fallback} with status ${res.status}`;
 }
 
+/** The session is missing or expired; the user has to sign in again. */
+export class UnauthorizedError extends Error {
+  constructor(message = "Your session has expired. Please sign in again.") {
+    super(message);
+    this.name = "UnauthorizedError";
+  }
+}
+
+/**
+ * Browser client for the backend proxy. It never sends identity: the proxy sets
+ * `x-user-id` from the signed session cookie and drops identity headers from the browser.
+ */
 export class ApiClient {
-  // Identity is required on every call. A silent default user once made HR
-  // requests run as user_001 and fail with 404 (chunk preview for drafts).
-  private static getHeaders(accessLevel: AccessLevel, userId: string): HeadersInit {
-    const headers: Record<string, string> = {
-      "x-user-id": userId,
-      "x-access-level": accessLevel,
+  private static async request<T>(
+    path: string,
+    init: RequestInit,
+    failureLabel: string
+  ): Promise<T> {
+    const res = await fetch(`/api/proxy/${path}`, init);
+
+    if (res.status === 401) {
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
+      }
+      throw new UnauthorizedError();
+    }
+    if (!res.ok) {
+      throw new Error(await extractErrorMessage(res, failureLabel));
+    }
+    return res.json();
+  }
+
+  private static json(method: string, body: unknown): RequestInit {
+    return {
+      method,
+      headers: { "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
     };
-    return headers;
   }
 
-  static async get<T>(path: string, accessLevel: AccessLevel, userId: string): Promise<T> {
-    const res = await fetch(`/api/proxy/${path}`, {
-      method: "GET",
-      headers: this.getHeaders(accessLevel, userId),
-    });
-
-    if (!res.ok) {
-      throw new Error(await extractErrorMessage(res, "Request failed"));
-    }
-
-    return res.json();
+  static get<T>(path: string): Promise<T> {
+    return this.request<T>(path, { method: "GET" }, "Request failed");
   }
 
-  static async post<T>(path: string, body: unknown, accessLevel: AccessLevel, userId: string): Promise<T> {
-    const headers: Record<string, string> = {
-      ...this.getHeaders(accessLevel, userId) as Record<string, string>,
-      "content-type": "application/json",
-    };
-
-    const res = await fetch(`/api/proxy/${path}`, {
-      method: "POST",
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    if (!res.ok) {
-      throw new Error(await extractErrorMessage(res, "Request failed"));
-    }
-
-    return res.json();
+  static post<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, this.json("POST", body), "Request failed");
   }
 
-  static async put<T>(path: string, body: unknown, accessLevel: AccessLevel, userId: string): Promise<T> {
-    const headers: Record<string, string> = {
-      ...this.getHeaders(accessLevel, userId) as Record<string, string>,
-      "content-type": "application/json",
-    };
-
-    const res = await fetch(`/api/proxy/${path}`, {
-      method: "PUT",
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    if (!res.ok) {
-      throw new Error(await extractErrorMessage(res, "Request failed"));
-    }
-
-    return res.json();
+  static put<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, this.json("PUT", body), "Request failed");
   }
 
-  static async upload<T>(path: string, formData: FormData, accessLevel: AccessLevel, userId: string): Promise<T> {
-    const headers = this.getHeaders(accessLevel, userId);
-
-    const res = await fetch(`/api/proxy/${path}`, {
-      method: "POST",
-      headers,
-      body: formData,
-    });
-
-    if (!res.ok) {
-      throw new Error(await extractErrorMessage(res, "Upload failed"));
-    }
-
-    return res.json();
+  static upload<T>(path: string, formData: FormData): Promise<T> {
+    return this.request<T>(path, { method: "POST", body: formData }, "Upload failed");
   }
 }

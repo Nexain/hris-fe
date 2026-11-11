@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/context/UserContext";
@@ -10,42 +10,19 @@ import {
   MessageSquare,
   FileText,
   ShieldAlert,
-  UserCheck,
-  ChevronDown,
-  Palette,
-  Code2,
-  Lock,
+  User as UserIcon,
+  LogOut,
 } from "lucide-react";
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, accessLevel, isHRAdmin, availableEmployees, setEmployee, setAccessLevel } = useUser();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  // The login page has no signed-in user and no navbar.
+  if (pathname === "/login") return null;
+  return <SignedInNavbar pathname={pathname} />;
+}
 
-  const handleLockSession = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      window.location.href = "/login";
-    }
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Do not render navbar on the login screen
-  if (pathname === "/login") {
-    return null;
-  }
+function SignedInNavbar({ pathname }: { pathname: string }) {
+  const { user, isHRAdmin, logout } = useUser();
 
   const navLinks = [
     { href: "/", label: "Onboarding", icon: LayoutDashboard },
@@ -96,143 +73,39 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* Right side: Multi-Persona Switcher & Lock Button */}
+        {/* Right side: signed-in user and logout */}
         <div className="flex items-center gap-2">
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 transition-all cursor-pointer shadow-xs"
-            >
-              {isHRAdmin ? (
-                <>
-                  <ShieldAlert className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  <div className="flex flex-col text-left text-xs">
-                    <span className="font-semibold text-purple-700 dark:text-purple-300">
-                      HR Admin
-                    </span>
-                    <span className="text-zinc-500 text-[10px]">People Operations</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {user.role.includes("Engineer") ? (
-                    <Code2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  ) : (
-                    <Palette className="w-4 h-4 text-pink-600 dark:text-pink-400" />
-                  )}
-                  <div className="flex flex-col text-left text-xs">
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                      {user.name}
-                    </span>
-                    <span className="text-zinc-500 text-[10px]">
-                      {user.role} ({user.location})
-                    </span>
-                  </div>
-                </>
-              )}
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-400 ml-1" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="px-3 py-2 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                  Select Persona / Role
-                </div>
-
-                {/* Employee Personas */}
-                <div className="space-y-1">
-                  {availableEmployees.map((emp) => {
-                    const isActive = !isHRAdmin && user.id === emp.id;
-                    const isEng = emp.role.includes("Engineer");
-
-                    return (
-                      <button
-                        key={emp.id}
-                        onClick={() => {
-                          setEmployee(emp.id);
-                          setDropdownOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs transition-colors cursor-pointer ${
-                          isActive
-                            ? "bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-100 font-semibold"
-                            : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                            isEng
-                              ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600"
-                              : "bg-pink-100 dark:bg-pink-900/40 text-pink-600"
-                          }`}
-                        >
-                          {isEng ? <Code2 className="w-4 h-4" /> : <Palette className="w-4 h-4" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold">{emp.name}</span>
-                            <span className="text-[10px] text-zinc-400">{emp.location}</span>
-                          </div>
-                          <div className="text-[11px] text-zinc-500 truncate">{emp.role}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="my-2 border-t border-zinc-100 dark:border-zinc-800" />
-
-                {/* HR Admin Persona */}
-                <button
-                  onClick={() => {
-                    setAccessLevel("HR_ADMIN");
-                    setDropdownOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs transition-colors cursor-pointer ${
-                    isHRAdmin
-                      ? "bg-purple-50 dark:bg-purple-950/60 text-purple-900 dark:text-purple-100 font-semibold"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                  }`}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center shrink-0">
-                    <ShieldAlert className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-purple-700 dark:text-purple-300">
-                      HR Admin Mode
-                    </div>
-                    <div className="text-[11px] text-zinc-500 truncate">
-                      People Ops • Oversight & Policies
-                    </div>
-                  </div>
-                </button>
-
-                <div className="my-2 border-t border-zinc-100 dark:border-zinc-800" />
-
-                {/* Lock Session */}
-                <button
-                  onClick={handleLockSession}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/40 text-red-600 flex items-center justify-center shrink-0">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold">Lock Session</div>
-                    <div className="text-[10px] text-zinc-400">Lock demo gate</div>
-                  </div>
-                </button>
-              </div>
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shadow-xs min-w-0"
+            title={`Signed in as ${user.name} (${user.user_id})`}
+          >
+            {isHRAdmin ? (
+              <ShieldAlert className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400" />
+            ) : (
+              <UserIcon className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
             )}
+            <div className="flex flex-col text-left text-xs min-w-0">
+              <span
+                className={`font-semibold truncate max-w-[9rem] sm:max-w-[14rem] ${
+                  isHRAdmin ? "text-purple-700 dark:text-purple-300" : "text-zinc-900 dark:text-zinc-100"
+                }`}
+              >
+                {user.name}
+              </span>
+              <span className="hidden sm:block text-zinc-500 text-[10px] truncate max-w-[14rem]">
+                {isHRAdmin ? `HR Admin · ${user.department || "People Operations"}` : user.role}
+                {user.location ? ` (${user.location})` : ""}
+              </span>
+            </div>
           </div>
 
-          {/* Quick Lock Button */}
           <button
-            onClick={handleLockSession}
-            title="Lock Demo Session"
-            className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+            onClick={logout}
+            title="Log out"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-red-200 dark:hover:border-red-900 bg-zinc-50 dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
           >
-            <Lock className="w-4 h-4" />
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Log out</span>
           </button>
         </div>
       </div>

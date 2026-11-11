@@ -23,16 +23,16 @@ function buildHistory(messages: ChatMessage[]): ChatHistoryEntry[] {
 }
 
 export function ChatContainer() {
-  const { user, accessLevel, isHRAdmin } = useUser();
+  const { user, isHRAdmin } = useUser();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const initialQuery = searchParams.get("q") || "";
 
-  const storageKey = `dayone_chat_${user.id}`;
+  const storageKey = `dayone_chat_${user.user_id}`;
 
   const createInitialMessage = (): ChatMessage => ({
-    id: `welcome-${user.id}-${Date.now()}`,
+    id: `welcome-${user.user_id}-${Date.now()}`,
     sender: "copilot",
     content: isHRAdmin
       ? `Hello HR Admin! 🛡️ Welcome to the **DayOne AI Copilot Testing Sandbox**.\n\nHere you can test and audit how the AI answers questions grounded in company policies, handbooks, and procedures before employees access them.\n\nTry asking about the **First Day Guide** or leave policy!`
@@ -108,13 +108,8 @@ export function ChatContainer() {
     try {
       const response = await ApiClient.post<ChatResponse>(
         "chat",
-        {
-          message: text,
-          user_id: user.id,
-          history,
-        },
-        accessLevel,
-        user.id
+        // Identity comes from the session (the proxy sets it), not the request body.
+        { message: text, history }
       );
 
       const botMessage: ChatMessage = {

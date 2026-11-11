@@ -1,88 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const BACKEND_URL =
-  process.env.BACKEND_API_URL ||
-  "https://chatbot-hris-991560435962.asia-southeast1.run.app";
-
-async function getAuthToken(audience: string): Promise<string> {
-  // 1. Use static env token if provided (e.g. local development)
-  if (process.env.GCP_BEARER_TOKEN) {
-    return process.env.GCP_BEARER_TOKEN;
-  }
-
-  // 2. In Cloud Run production, auto-fetch IAM identity token from GCP metadata server
-  try {
-    const metadataUrl = `http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${encodeURIComponent(audience)}`;
-    const res = await fetch(metadataUrl, {
-      headers: { "Metadata-Flavor": "Google" },
-      signal: AbortSignal.timeout(1000),
-    });
-    if (res.ok) {
-      const token = await res.text();
-      return token.trim();
-    }
-  } catch {
-    // Not running in GCP or metadata server unavailable
-  }
-
-  return "";
-}
+import { AUTH_COOKIE_NAME, verifySession } from "@/lib/auth";
+import { backendFetch } from "@/lib/backend";
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
 async function proxyRequest(req: NextRequest, context: RouteContext) {
+  // Identity comes only from the signed session cookie. Browser-sent x-user-id,
+  // x-access-level and other x-user-* headers are never forwarded.
+  const session = await verifySession(req.cookies.get(AUTH_COOKIE_NAME)?.value);
+  if (!session) {
+    return NextResponse.json(
+      { error: { code: "UNAUTHORIZED", message: "Your session has expired. Please sign in again." } },
+      { status: 401 }
+    );
+  }
+
   const { path } = await context.params;
-  const pathString = path.join("/");
-  const targetUrl = `${BACKEND_URL}/api/v1/${pathString}${req.nextUrl.search}`;
-
-  const headers = new Headers();
-
-  // Forward critical client headers
-  if (req.headers.has("x-user-id")) {
-    headers.set("x-user-id", req.headers.get("x-user-id")!);
-  }
-  if (req.headers.has("x-access-level")) {
-    headers.set("x-access-level", req.headers.get("x-access-level")!);
-  }
-  if (req.headers.has("content-type")) {
-    headers.set("content-type", req.headers.get("content-type")!);
-  }
-
-  // Attach Google Cloud Run IAM bearer token (static or auto-generated)
-  const token = await getAuthToken(BACKEND_URL);
-  if (token) {
-    headers.set("authorization", `Bearer ${token}`);
-  }
-
+  const pathString = path.map(encodeURIComponent).join("/");
   const method = req.method;
-  let body: BodyInit | undefined = undefined;
-
-  if (method !== "GET" && method !== "HEAD") {
-    body = await req.blob();
-  }
+  const body = method !== "GET" && method !== "HEAD" ? await req.blob() : undefined;
 
   try {
-    const backendRes = await fetch(targetUrl, {
+    const backendRes = await backendFetch(`${pathString}${req.nextUrl.search}`, session.uid, {
       method,
-      headers,
       body,
+      contentType: req.headers.get("content-type"),
     });
 
-    const responseData = await backendRes.arrayBuffer();
-
-    return new NextResponse(responseData, {
+    return new NextResponse(await backendRes.arrayBuffer(), {
       status: backendRes.status,
       headers: {
-        "content-type":
-          backendRes.headers.get("content-type") || "application/json",
+        "content-type": backendRes.headers.get("content-type") || "application/json",
       },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("API Proxy Error:", err);
     return NextResponse.json(
-      { error: "Failed to communicate with backend service", details: err?.message },
+      { error: { code: "BAD_GATEWAY", message: "Failed to communicate with backend service" } },
       { status: 502 }
     );
   }

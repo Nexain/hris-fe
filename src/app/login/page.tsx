@@ -2,20 +2,27 @@
 
 import React, { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Sparkles, Lock, KeyRound, ArrowRight, Eye, EyeOff, ShieldCheck, AlertCircle } from "lucide-react";
+import { Sparkles, Lock, KeyRound, ArrowRight, Eye, EyeOff, ShieldCheck, AlertCircle, User } from "lucide-react";
+
+// Only same-site paths: "?from=https://evil.example" or "//evil.example" fall back to "/".
+function safeRedirectPath(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return "/";
+  return value;
+}
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/";
+  const from = safeRedirectPath(searchParams.get("from"));
 
-  const [passcode, setPasscode] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passcode.trim()) return;
+    if (!username.trim() || !password) return;
 
     setLoading(true);
     setError(null);
@@ -24,13 +31,13 @@ function LoginForm() {
       const res = await fetch("/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode }),
+        body: JSON.stringify({ username: username.trim(), password }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.success) {
-        setError(data.error || "Incorrect passcode. Please try again.");
+        setError(data.error || "Incorrect username or password.");
         setLoading(false);
         return;
       }
@@ -55,10 +62,10 @@ function LoginForm() {
           Protected Demo Sandbox
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          DayOne<span className="text-blue-600">.ai</span> Access Gate
+          Sign in to DayOne<span className="text-blue-600">.ai</span>
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
-          Enter the team passcode to access the onboarding copilot and knowledge base.
+          Sign in with your DayOne account to access the onboarding copilot and knowledge base.
         </p>
       </div>
 
@@ -70,32 +77,59 @@ function LoginForm() {
         </div>
       )}
 
-      {/* Passcode Form */}
+      {/* Sign-in Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label
-            htmlFor="passcode"
+            htmlFor="username"
             className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5"
           >
-            Access Passcode
+            Username
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
+              <User className="w-4 h-4" />
+            </div>
+            <input
+              id="username"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. user_001"
+              disabled={loading}
+              autoFocus
+              className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <div>
+          <label
+            htmlFor="password"
+            className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5"
+          >
+            Password
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
               <KeyRound className="w-4 h-4" />
             </div>
             <input
-              id="passcode"
+              id="password"
               type={showPassword ? "text" : "password"}
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              placeholder="Enter team secret..."
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
               disabled={loading}
-              autoFocus
               className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer transition-colors"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -105,25 +139,25 @@ function LoginForm() {
 
         <button
           type="submit"
-          disabled={loading || !passcode.trim()}
+          disabled={loading || !username.trim() || !password}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <>
-              Unlock DayOne HRIS
+              Sign in
               <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
       </form>
 
-      {/* Hint card (the passcode itself is never shown here) */}
+      {/* Hint card */}
       <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800 text-center">
         <div className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
           <Lock className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Ask your People Operations team for the access passcode.</span>
+          <span>Don&apos;t have an account? Ask People Operations.</span>
         </div>
       </div>
     </div>

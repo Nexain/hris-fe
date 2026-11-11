@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ApiClient } from "@/lib/api";
-import { HR_ADMIN_USER, useUser } from "@/context/UserContext";
+import { useUser } from "@/context/UserContext";
 import { Document } from "@/types";
 import { DocumentTable } from "@/components/documents/DocumentTable";
 import { NewDocumentModal } from "@/components/documents/NewDocumentModal";
@@ -22,7 +23,7 @@ import {
 } from "lucide-react";
 
 export default function DocumentsPage() {
-  const { isHRAdmin, setAccessLevel } = useUser();
+  const { isHRAdmin } = useUser();
 
   const [isNewDocOpen, setIsNewDocOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
@@ -44,7 +45,8 @@ export default function DocumentsPage() {
   // Query documents list
   const { data: documents = [], isLoading } = useQuery<Document[]>({
     queryKey: ["documents"],
-    queryFn: () => ApiClient.get<Document[]>("documents", "HR_ADMIN", HR_ADMIN_USER.id),
+    queryFn: () => ApiClient.get<Document[]>("documents"),
+    enabled: isHRAdmin,
   });
 
   // If selectedDoc updates in query, keep it in sync
@@ -83,13 +85,13 @@ export default function DocumentsPage() {
           </div>
 
           <div className="pt-2">
-            <button
-              onClick={() => setAccessLevel("HR_ADMIN")}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/20 transition-all"
             >
-              <span>Switch to HR Admin Mode</span>
+              <span>Back to my onboarding</span>
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
         </div>
       </div>

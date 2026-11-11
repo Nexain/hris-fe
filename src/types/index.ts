@@ -1,5 +1,27 @@
 export type AccessLevel = "EMPLOYEE" | "HR_ADMIN" | "SYSTEM";
 
+/** The signed-in user, from GET /api/auth/me. */
+export interface CurrentUser {
+  user_id: string;
+  name: string;
+  role: string;
+  department: string;
+  location: string;
+  is_hr: boolean;
+}
+
+/** One row of GET /admin/employees (HR only). */
+export interface EmployeeSummary {
+  user_id: string;
+  name: string;
+  role: string;
+  department: string;
+  location: string;
+  progress_percent: number;
+  completed: number;
+  total: number;
+}
+
 // 1. Profile Models
 export interface UserProfile {
   user_id: string;
