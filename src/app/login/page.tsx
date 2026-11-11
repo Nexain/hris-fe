@@ -119,11 +119,11 @@ function LoginForm() {
         </button>
       </form>
 
-      {/* Helpful Hint Card */}
+      {/* Hint card (the passcode itself is never shown here) */}
       <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800 text-center">
         <div className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
           <Lock className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Default demo passcode: <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400">dayone2026</code></span>
+          <span>Ask your People Operations team for the access passcode.</span>
         </div>
       </div>
     </div>

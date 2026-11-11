@@ -56,7 +56,15 @@ export interface ChatMessage {
   citations?: Citation[];
   grounded?: boolean;
   escalation_required?: boolean;
+  /** Error replies are shown to the user but never sent back as history. */
+  isError?: boolean;
   timestamp: Date;
+}
+
+/** One earlier turn, in the shape the backend's ChatRequest.history expects. */
+export interface ChatHistoryEntry {
+  role: "user" | "model";
+  content: string;
 }
 
 // 4. Document Knowledge Base Models (Verified)

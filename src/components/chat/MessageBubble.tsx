@@ -48,15 +48,15 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         }`}
       >
         {/* Markdown Rendered Text */}
-        <div className="text-sm leading-relaxed prose dark:prose-invert max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-strong:font-bold">
-          {isUser ? (
-            <p className="whitespace-pre-wrap">{message.content}</p>
-          ) : (
+        {isUser ? (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        ) : (
+          <div className="text-sm leading-relaxed prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-strong:font-bold prose-table:my-2">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {message.content}
             </ReactMarkdown>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Escalation Warning (if question requires HR review) */}
         {!isUser && message.escalation_required && (

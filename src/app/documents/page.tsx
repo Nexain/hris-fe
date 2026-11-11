@@ -180,6 +180,7 @@ export default function DocumentsPage() {
 
       {/* Document Version Inspector Drawer */}
       <DocumentDrawer
+        key={activeSelectedDoc?.id ?? "none"}
         document={activeSelectedDoc}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}

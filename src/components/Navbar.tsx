@@ -31,11 +31,6 @@ export function Navbar() {
     }
   };
 
-  // Do not render navbar on the login screen
-  if (pathname === "/login") {
-    return null;
-  }
-
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -46,6 +41,11 @@ export function Navbar() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Do not render navbar on the login screen
+  if (pathname === "/login") {
+    return null;
+  }
 
   const navLinks = [
     { href: "/", label: "Onboarding", icon: LayoutDashboard },
@@ -236,6 +236,27 @@ export function Navbar() {
           </button>
         </div>
       </div>
+
+      {/* Mobile navigation: the desktop links above are hidden below md */}
+      <nav className="md:hidden flex items-center gap-1 overflow-x-auto px-4 pb-2">
+        {navLinks.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                isActive
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
     </header>
   );
 }
