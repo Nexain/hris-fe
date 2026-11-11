@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiClient } from "@/lib/api";
-import { HR_ADMIN_USER } from "@/context/UserContext";
 import { Document, DocumentVersion, VersionStatus } from "@/types";
 import {
   X,
@@ -79,9 +78,7 @@ export function DocumentDrawer({
       }
       return ApiClient.upload<{ version_id: string }>(
         `documents/${document.id}/versions`,
-        formData,
-        "HR_ADMIN",
-        HR_ADMIN_USER.id
+        formData
       );
     },
     onSuccess: (data) => {
@@ -103,9 +100,7 @@ export function DocumentDrawer({
     mutationFn: async (versionId: string) => {
       return ApiClient.post(
         `versions/${versionId}/process`,
-        {},
-        "HR_ADMIN",
-        HR_ADMIN_USER.id
+        {}
       );
     },
     onSuccess: () => {
@@ -122,9 +117,7 @@ export function DocumentDrawer({
     mutationFn: async (versionId: string) => {
       return ApiClient.post(
         `versions/${versionId}/publish`,
-        {},
-        "HR_ADMIN",
-        HR_ADMIN_USER.id
+        {}
       );
     },
     onSuccess: () => {
@@ -141,9 +134,7 @@ export function DocumentDrawer({
     mutationFn: async (versionId: string) => {
       return ApiClient.post(
         `versions/${versionId}/reject`,
-        {},
-        "HR_ADMIN",
-        HR_ADMIN_USER.id
+        {}
       );
     },
     onSuccess: () => {

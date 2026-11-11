@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiClient } from "@/lib/api";
-import { HR_ADMIN_USER } from "@/context/UserContext";
 import { Document, DocumentType } from "@/types";
 import { X, Plus, FileText, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -55,7 +54,7 @@ export function NewDocumentModal({
       department: string;
       location: string;
       owner: string;
-    }) => ApiClient.post<Document>("documents", data, "HR_ADMIN", HR_ADMIN_USER.id),
+    }) => ApiClient.post<Document>("documents", data),
     onSuccess: (newDoc) => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       toast.success(`Document created: ${newDoc.title}`);

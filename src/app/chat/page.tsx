@@ -16,7 +16,7 @@ export default function ChatPage() {
         </div>
       }
     >
-      <ChatContainer key={user.id} />
+      <ChatContainer key={user.user_id} />
     </Suspense>
   );
 }

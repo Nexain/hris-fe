@@ -3,7 +3,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiClient } from "@/lib/api";
-import { HR_ADMIN_USER } from "@/context/UserContext";
 import { DocumentChunk } from "@/types";
 import { X, Layers, Hash, FileText, Loader2, AlertCircle } from "lucide-react";
 
@@ -24,7 +23,7 @@ export function ChunkPreviewModal({
 }: ChunkPreviewModalProps) {
   const { data: chunks, isLoading, error } = useQuery<DocumentChunk[]>({
     queryKey: ["chunks", versionId],
-    queryFn: () => ApiClient.get<DocumentChunk[]>(`versions/${versionId}/chunks`, "HR_ADMIN", HR_ADMIN_USER.id),
+    queryFn: () => ApiClient.get<DocumentChunk[]>(`versions/${versionId}/chunks`),
     enabled: isOpen && !!versionId,
   });
 

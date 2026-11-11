@@ -19,23 +19,30 @@ import {
 } from "lucide-react";
 
 export function TaskList() {
-  const { user, inspectedEmployee, isHRAdmin, accessLevel } = useUser();
+  const { inspectedEmployee, isHRAdmin, employeesLoading } = useUser();
   const queryClient = useQueryClient();
   const [selectedDay, setSelectedDay] = useState<number | "all">("all");
 
-  const targetUserId = isHRAdmin ? inspectedEmployee.id : user.id;
+  // Employees read their own tasks; HR reads the selected employee's tasks through the
+  // read-only, HR-only admin endpoint.
+  const tasksPath = isHRAdmin
+    ? inspectedEmployee && `admin/employees/${encodeURIComponent(inspectedEmployee.user_id)}/tasks`
+    : "tasks";
 
-  const { data: tasks, isLoading, error } = useQuery<OnboardingTask[]>({
-    queryKey: ["onboarding-tasks", targetUserId],
-    queryFn: () => ApiClient.get<OnboardingTask[]>("tasks", accessLevel, targetUserId),
+  const { data: tasks, isLoading: tasksLoading, error } = useQuery<OnboardingTask[]>({
+    queryKey: ["onboarding-tasks", tasksPath],
+    queryFn: () => ApiClient.get<OnboardingTask[]>(tasksPath!),
+    enabled: !!tasksPath,
   });
+  const isLoading = tasksLoading || (isHRAdmin && employeesLoading);
 
+  // Only employees complete tasks, and only their own (the proxy sets the identity).
   const completeMutation = useMutation({
     mutationFn: (taskId: string) =>
-      ApiClient.post(`tasks/${taskId}/complete`, {}, accessLevel, targetUserId),
+      ApiClient.post(`tasks/${encodeURIComponent(taskId)}/complete`, {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["onboarding-tasks", targetUserId] });
-      queryClient.invalidateQueries({ queryKey: ["onboarding-progress", targetUserId] });
+      queryClient.invalidateQueries({ queryKey: ["onboarding-tasks", "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["onboarding-progress", "onboarding/progress"] });
       toast.success("Task marked as completed! 🎉", {
         description: "Your onboarding progress has been updated.",
       });
@@ -68,7 +75,9 @@ export function TaskList() {
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
               {isHRAdmin
-                ? `${inspectedEmployee.name}'s Onboarding Checklist`
+                ? inspectedEmployee
+                  ? `${inspectedEmployee.name}’s Onboarding Checklist`
+                  : "Employee Onboarding Checklist"
                 : "Onboarding Checklist"}
             </h2>
             {isHRAdmin && (
@@ -79,7 +88,9 @@ export function TaskList() {
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {isHRAdmin
-              ? `Reviewing onboarding milestone completion for employee ${inspectedEmployee.name} (${inspectedEmployee.id}).`
+              ? inspectedEmployee
+                ? `Read-only view of ${inspectedEmployee.name}'s (${inspectedEmployee.user_id}) onboarding milestones.`
+                : "Select an employee above to review their onboarding milestones."
               : "Review and complete tasks designed for your first three days at DayOne AI."}
           </p>
         </div>
@@ -127,7 +138,11 @@ export function TaskList() {
         </div>
       ) : error ? (
         <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-xs">
-          Failed to load onboarding tasks.
+          Failed to load onboarding tasks: {error.message}
+        </div>
+      ) : isHRAdmin && !inspectedEmployee ? (
+        <div className="py-12 text-center text-zinc-400 text-sm">
+          No employee selected.
         </div>
       ) : filteredTasks.length === 0 ? (
         <div className="py-12 text-center text-zinc-400 text-sm">

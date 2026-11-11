@@ -1,120 +1,121 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { AccessLevel } from "@/types";
-
-export interface UserProfileState {
-  id: string;
-  name: string;
-  role: string;
-  department: string;
-  location: string;
-}
-
-export const DEMO_EMPLOYEES: UserProfileState[] = [
-  {
-    id: "user_001",
-    name: "Naufal",
-    role: "Backend Engineer",
-    department: "Engineering",
-    location: "Jakarta",
-  },
-  {
-    id: "user_002",
-    name: "Afif",
-    role: "Product Designer",
-    department: "Design",
-    location: "Jakarta",
-  },
-];
-
-export const HR_ADMIN_USER: UserProfileState = {
-  id: "hr_admin_001",
-  name: "HR Admin",
-  role: "People Operations Lead",
-  department: "People Operations",
-  location: "Jakarta",
-};
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, AlertCircle } from "lucide-react";
+import { ApiClient, UnauthorizedError } from "@/lib/api";
+import { CurrentUser, EmployeeSummary } from "@/types";
 
 interface UserContextType {
-  user: UserProfileState;
-  inspectedEmployee: UserProfileState;
-  availableEmployees: UserProfileState[];
-  accessLevel: AccessLevel;
+  /** The signed-in user. Identity is decided by the server session, never the browser. */
+  user: CurrentUser;
+  /** HR status comes from the backend (HR_ADMIN_USER_IDS via /profile.is_hr). */
   isHRAdmin: boolean;
-  setEmployee: (userId: string) => void;
+  /** HR only: every employee with onboarding progress, from /admin/employees. */
+  employees: EmployeeSummary[];
+  employeesLoading: boolean;
+  employeesError: Error | null;
+  /** HR only: the employee shown in the onboarding monitor. */
+  inspectedEmployee: EmployeeSummary | null;
   setInspectedEmployee: (userId: string) => void;
-  toggleRole: () => void;
-  setAccessLevel: (level: AccessLevel) => void;
+  logout: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [accessLevel, setAccessLevelState] = useState<AccessLevel>("EMPLOYEE");
-  const [activeEmployeeId, setActiveEmployeeId] = useState<string>("user_001");
-  const [inspectedEmployeeId, setInspectedEmployeeId] = useState<string>("user_001");
+async function fetchCurrentUser(): Promise<CurrentUser> {
+  const res = await fetch("/api/auth/me", { cache: "no-store" });
+  if (res.status === 401) throw new UnauthorizedError();
+  if (!res.ok) throw new Error(`Could not load your account (status ${res.status}).`);
+  return res.json();
+}
+
+function clearClientSession() {
+  // Old persona-switcher keys and per-user chat transcripts.
+  localStorage.removeItem("dayone_access_level");
+  localStorage.removeItem("dayone_active_employee");
+  for (const key of Object.keys(sessionStorage)) {
+    if (key.startsWith("dayone_chat_")) sessionStorage.removeItem(key);
+  }
+}
+
+export async function logout() {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } finally {
+    clearClientSession();
+    window.location.href = "/login";
+  }
+}
+
+function SignedInProvider({ children }: { children: React.ReactNode }) {
+  const [inspectedId, setInspectedId] = useState<string | null>(null);
+
+  const meQuery = useQuery<CurrentUser>({
+    queryKey: ["me"],
+    queryFn: fetchCurrentUser,
+    staleTime: 5 * 60 * 1000,
+    retry: (count, err) => !(err instanceof UnauthorizedError) && count < 2,
+  });
+  const user = meQuery.data;
+  const isHRAdmin = !!user?.is_hr;
+
+  const employeesQuery = useQuery<EmployeeSummary[]>({
+    queryKey: ["admin-employees"],
+    queryFn: () => ApiClient.get<EmployeeSummary[]>("admin/employees"),
+    enabled: isHRAdmin,
+  });
 
   useEffect(() => {
-    const savedLevel = localStorage.getItem("dayone_access_level") as AccessLevel;
-    if (savedLevel === "EMPLOYEE" || savedLevel === "HR_ADMIN") {
-      setAccessLevelState(savedLevel);
-    }
-    const savedEmployeeId = localStorage.getItem("dayone_active_employee");
-    if (savedEmployeeId && DEMO_EMPLOYEES.some((e) => e.id === savedEmployeeId)) {
-      setActiveEmployeeId(savedEmployeeId);
-      setInspectedEmployeeId(savedEmployeeId);
-    }
+    // Leftovers from the persona switcher must not influence anything.
+    localStorage.removeItem("dayone_access_level");
+    localStorage.removeItem("dayone_active_employee");
   }, []);
 
-  const setAccessLevel = (level: AccessLevel) => {
-    setAccessLevelState(level);
-    localStorage.setItem("dayone_access_level", level);
-  };
-
-  const setEmployee = (userId: string) => {
-    const found = DEMO_EMPLOYEES.find((e) => e.id === userId);
-    if (found) {
-      setActiveEmployeeId(found.id);
-      setInspectedEmployeeId(found.id);
-      setAccessLevel("EMPLOYEE");
-      localStorage.setItem("dayone_active_employee", found.id);
+  useEffect(() => {
+    if (meQuery.error instanceof UnauthorizedError) {
+      window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
     }
-  };
+  }, [meQuery.error]);
 
-  const setInspectedEmployee = (userId: string) => {
-    const found = DEMO_EMPLOYEES.find((e) => e.id === userId);
-    if (found) {
-      setInspectedEmployeeId(found.id);
-    }
-  };
+  if (!user) {
+    const failed = meQuery.isError && !(meQuery.error instanceof UnauthorizedError);
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-6">
+        {failed ? (
+          <div className="max-w-sm text-center space-y-3">
+            <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">{meQuery.error?.message}</p>
+            <button
+              onClick={() => meQuery.refetch()}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" aria-label="Loading your account" />
+        )}
+      </div>
+    );
+  }
 
-  const toggleRole = () => {
-    const next = accessLevel === "EMPLOYEE" ? "HR_ADMIN" : "EMPLOYEE";
-    setAccessLevel(next);
-  };
-
-  const isHRAdmin = accessLevel === "HR_ADMIN" || accessLevel === "SYSTEM";
-
-  const currentEmployee =
-    DEMO_EMPLOYEES.find((e) => e.id === activeEmployeeId) || DEMO_EMPLOYEES[0];
+  const employees = employeesQuery.data ?? [];
   const inspectedEmployee =
-    DEMO_EMPLOYEES.find((e) => e.id === inspectedEmployeeId) || DEMO_EMPLOYEES[0];
-
-  const user = isHRAdmin ? HR_ADMIN_USER : currentEmployee;
+    employees.find((e) => e.user_id === inspectedId) ?? employees[0] ?? null;
 
   return (
     <UserContext.Provider
       value={{
         user,
-        inspectedEmployee,
-        availableEmployees: DEMO_EMPLOYEES,
-        accessLevel,
         isHRAdmin,
-        setEmployee,
-        setInspectedEmployee,
-        toggleRole,
-        setAccessLevel,
+        employees,
+        employeesLoading: employeesQuery.isLoading,
+        employeesError: employeesQuery.error,
+        inspectedEmployee,
+        setInspectedEmployee: setInspectedId,
+        logout,
       }}
     >
       {children}
@@ -122,10 +123,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  // The login page has no user; it must not wait for /api/auth/me.
+  if (pathname === "/login") return <>{children}</>;
+  return <SignedInProvider>{children}</SignedInProvider>;
+}
+
 export function useUser() {
   const context = useContext(UserContext);
   if (!context) {
-    throw new Error("useUser must be used within a UserProvider");
+    throw new Error("useUser must be used within a signed-in UserProvider");
   }
   return context;
 }
