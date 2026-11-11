@@ -37,15 +37,17 @@ export async function extractErrorMessage(res: Response, fallback: string): Prom
 }
 
 export class ApiClient {
-  private static getHeaders(accessLevel?: AccessLevel, userId: string = "user_001"): HeadersInit {
+  // Identity is required on every call. A silent default user once made HR
+  // requests run as user_001 and fail with 404 (chunk preview for drafts).
+  private static getHeaders(accessLevel: AccessLevel, userId: string): HeadersInit {
     const headers: Record<string, string> = {
       "x-user-id": userId,
-      "x-access-level": accessLevel || "EMPLOYEE",
+      "x-access-level": accessLevel,
     };
     return headers;
   }
 
-  static async get<T>(path: string, accessLevel?: AccessLevel, userId?: string): Promise<T> {
+  static async get<T>(path: string, accessLevel: AccessLevel, userId: string): Promise<T> {
     const res = await fetch(`/api/proxy/${path}`, {
       method: "GET",
       headers: this.getHeaders(accessLevel, userId),
@@ -58,7 +60,7 @@ export class ApiClient {
     return res.json();
   }
 
-  static async post<T>(path: string, body?: any, accessLevel?: AccessLevel, userId?: string): Promise<T> {
+  static async post<T>(path: string, body: unknown, accessLevel: AccessLevel, userId: string): Promise<T> {
     const headers: Record<string, string> = {
       ...this.getHeaders(accessLevel, userId) as Record<string, string>,
       "content-type": "application/json",
@@ -77,7 +79,7 @@ export class ApiClient {
     return res.json();
   }
 
-  static async put<T>(path: string, body?: any, accessLevel?: AccessLevel, userId?: string): Promise<T> {
+  static async put<T>(path: string, body: unknown, accessLevel: AccessLevel, userId: string): Promise<T> {
     const headers: Record<string, string> = {
       ...this.getHeaders(accessLevel, userId) as Record<string, string>,
       "content-type": "application/json",
@@ -96,7 +98,7 @@ export class ApiClient {
     return res.json();
   }
 
-  static async upload<T>(path: string, formData: FormData, accessLevel?: AccessLevel, userId?: string): Promise<T> {
+  static async upload<T>(path: string, formData: FormData, accessLevel: AccessLevel, userId: string): Promise<T> {
     const headers = this.getHeaders(accessLevel, userId);
 
     const res = await fetch(`/api/proxy/${path}`, {

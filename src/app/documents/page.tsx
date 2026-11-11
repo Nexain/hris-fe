@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiClient } from "@/lib/api";
-import { useUser } from "@/context/UserContext";
+import { HR_ADMIN_USER, useUser } from "@/context/UserContext";
 import { Document } from "@/types";
 import { DocumentTable } from "@/components/documents/DocumentTable";
 import { NewDocumentModal } from "@/components/documents/NewDocumentModal";
@@ -44,7 +44,7 @@ export default function DocumentsPage() {
   // Query documents list
   const { data: documents = [], isLoading } = useQuery<Document[]>({
     queryKey: ["documents"],
-    queryFn: () => ApiClient.get<Document[]>("documents", "HR_ADMIN", "hr_admin_001"),
+    queryFn: () => ApiClient.get<Document[]>("documents", "HR_ADMIN", HR_ADMIN_USER.id),
   });
 
   // If selectedDoc updates in query, keep it in sync
